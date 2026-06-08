@@ -6,14 +6,14 @@ Servidor [MCP](https://modelcontextprotocol.io) (Model Context Protocol) para in
   <img width="380" height="200" src="https://glama.ai/mcp/servers/@Miguelgbastos/Kommo-MCP/badge" alt="Kommo CRM Server MCP server" />
 </a>
 
-## 🚀 Funcionalidades
 ## Funcionalidades
 
-- **Protocolo MCP**: Lifecycle (initialize / initialized), transporte Streamable HTTP, validação de headers (`MCP-Protocol-Version`, `MCP-Session-Id`)
-- **Tools**: Leads, contatos, empresas, tarefas, relatório de vendas, criação de lead, motivos da perda, fixar/desafixar notas, Salesbot (run/stop)
-- **Resources**: Relatório de vendas, pipelines, motivos da perda de leads
-- **Prompts**: Templates para análise de vendas e resumo de leads
-- **ask_kommo**: Interface conversacional (perguntas em linguagem natural sobre vendas, leads, contatos)
+- **Protocolo MCP v2**: Lifecycle, transporte Streamable HTTP, validação de headers (`MCP-Protocol-Version`, `MCP-Session-Id`)
+- **23 Tools**: Leads, contatos, empresas, tarefas, pipelines, notas, relatórios, dashboard, Salesbot, motivos de perda
+- **5 Resources**: Relatório de vendas, pipelines, motivos de perda, dashboard, conta
+- **4 Prompts**: Templates para análise de vendas, leads, pipelines e motivos de perda
+- **ask_kommo**: Interface conversacional em linguagem natural
+- **Arquitetura modular**: Código organizado em módulos (`kommo-api`, `mcp/`, `ask-kommo`)
 - **Segurança**: Validação de Origin, bind em localhost por default, autenticação opcional
 
 ## Pré-requisitos
@@ -67,30 +67,94 @@ O servidor sobe em `http://127.0.0.1:3001` (ou `MCP_HOST:PORT`).
 
 ## Ferramentas MCP
 
+### Conta e Dashboard
 | Tool | Descrição |
 |------|-----------|
-| `get_leads` | Listar leads (limit, page) |
-| `create_lead` | Criar lead (name, price, status_id) |
+| `get_account` | Informações da conta Kommo |
+| `get_dashboard` | Dados do dashboard |
+
+### Leads
+| Tool | Descrição |
+|------|-----------|
+| `get_leads` | Listar leads (limit, page, query) |
+| `get_lead` | Obter lead por ID |
+| `create_lead` | Criar lead (name, price, status_id, pipeline_id) |
+| `update_lead` | Atualizar lead existente |
+| `move_lead` | Mover lead para outro status/pipeline |
+
+### Pipelines e Relatórios
+| Tool | Descrição |
+|------|-----------|
+| `get_pipelines` | Listar pipelines (com status opcional por pipeline_id) |
 | `get_sales_report` | Relatório de vendas (dateFrom, dateTo) |
+
+### Contatos, Empresas e Tarefas
+| Tool | Descrição |
+|------|-----------|
 | `get_contacts` | Listar contatos |
 | `get_companies` | Listar empresas |
 | `get_tasks` | Listar tarefas |
-| `get_loss_reasons` | Listar motivos da perda de leads (API 2026) |
-| `pin_note` | Fixar nota (entity_type, note_id) |
-| `unpin_note` | Desafixar nota (entity_type, note_id) |
-| `run_salesbot` | Iniciar Salesbot (entity_id, entity_type) |
-| `stop_salesbot` | Parar Salesbot (bot_id) |
+| `create_task` | Criar tarefa vinculada a entidade |
+| `get_users` | Listar usuários da conta |
+
+### Notas
+| Tool | Descrição |
+|------|-----------|
+| `get_notes` | Listar notas de lead/contato/empresa |
+| `add_note` | Adicionar nota de texto |
+| `pin_note` | Fixar nota |
+| `unpin_note` | Desafixar nota |
+
+### Motivos de Perda e Salesbot
+| Tool | Descrição |
+|------|-----------|
+| `get_loss_reasons` | Listar motivos da perda de leads |
+| `get_loss_reason` | Obter motivo de perda por ID |
+| `run_salesbot` | Iniciar Salesbot |
+| `stop_salesbot` | Parar Salesbot |
+
+### IA Conversacional
+| Tool | Descrição |
+|------|-----------|
 | `ask_kommo` | Perguntas em linguagem natural sobre o CRM |
 
 ## Resources
 
-- `kommo://reports/sales` — Relatório de vendas (último mês)
-- `kommo://pipelines` — Lista de pipelines
-- `kommo://loss_reasons` — Motivos da perda de leads
+| URI | Descrição |
+|-----|-----------|
+| `kommo://reports/sales` | Relatório de vendas (último mês) |
+| `kommo://pipelines` | Lista de pipelines |
+| `kommo://loss_reasons` | Motivos da perda de leads |
+| `kommo://dashboard` | Dados do dashboard |
+| `kommo://account` | Informações da conta |
+
+## Prompts
+
+| Nome | Descrição |
+|------|-----------|
+| `analisar_vendas_mes` | Analisar vendas do mês |
+| `resumo_leads_status` | Resumo de leads por status |
+| `analise_pipeline` | Analisar performance de pipeline |
+| `motivos_perda` | Analisar motivos de perda |
+
+## Estrutura do Projeto
+
+```
+src/
+├── kommo-api.ts          # Cliente da API Kommo
+├── ask-kommo.ts          # Lógica conversacional ask_kommo
+├── http-streamable.ts    # Servidor MCP HTTP
+└── mcp/
+    ├── types.ts          # Tipos MCP
+    ├── tool-definitions.ts  # Schemas das tools
+    ├── tool-handlers.ts  # Execução das tools
+    ├── resources.ts      # Resources MCP
+    └── prompts.ts        # Prompts MCP
+```
 
 ## Exemplos de uso
 
-**1. Inicializar sessão MCP (obrigatório para clientes conformes):**
+**1. Inicializar sessão MCP:**
 ```bash
 curl -X POST http://localhost:3001/mcp \
   -H "Content-Type: application/json" \
@@ -105,30 +169,39 @@ curl -X POST http://localhost:3001/mcp \
   -d '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
 ```
 
-**3. Pergunta conversacional:**
+**3. Mover lead para outro status:**
 ```bash
 curl -X POST http://localhost:3001/mcp \
   -H "Content-Type: application/json" \
   -H "MCP-Protocol-Version: 2025-06-18" \
-  -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"ask_kommo","arguments":{"question":"quantas vendas tivemos este mês?"}}}'
+  -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"move_lead","arguments":{"lead_id":12345,"status_id":142}}}'
 ```
 
-**4. Motivos da perda de leads:**
+**4. Adicionar nota a um lead:**
 ```bash
 curl -X POST http://localhost:3001/mcp \
   -H "Content-Type: application/json" \
   -H "MCP-Protocol-Version: 2025-06-18" \
-  -d '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"get_loss_reasons","arguments":{}}}'
+  -d '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"add_note","arguments":{"entity_type":"leads","entity_id":12345,"text":"Cliente interessado no plano premium"}}}'
 ```
 
 ## Documentação
 
 - [docs/MCP_EVOLUCAO.md](docs/MCP_EVOLUCAO.md) — Plano de evolução e conformidade MCP
-- [docs/KOMMO_API_EVOLUCAO.md](docs/KOMMO_API_EVOLUCAO.md) — Evoluções da API Kommo e benefícios para o MCP
+- [docs/KOMMO_API_EVOLUCAO.md](docs/KOMMO_API_EVOLUCAO.md) — Evoluções da API Kommo
+- [Kommo para desenvolvedores](https://pt-developers.kommo.com/docs/kommo-para-desenvolvedores)
+- [Changelog Kommo](https://pt-developers.kommo.com/changelog)
 
-## Migração opcional para o SDK MCP
+## Changelog
 
-O servidor implementa o protocolo MCP manualmente. Para migrar para o SDK oficial (`@modelcontextprotocol/sdk`): use `Server` e `SSEServerTransport` de `@modelcontextprotocol/sdk/server` (e `server/sse`), monte o transport no Express e registre handlers com `setRequestHandler`, delegando à mesma lógica de negócio (KommoAPI em `src/kommo-api.ts`).
+### v2.0.0
+- Arquitetura modular (separação em `mcp/`, `ask-kommo.ts`)
+- 11 novas tools: `get_account`, `get_lead`, `update_lead`, `move_lead`, `get_pipelines`, `get_dashboard`, `create_task`, `get_users`, `get_loss_reason`, `get_notes`, `add_note`
+- 2 novos resources: `kommo://dashboard`, `kommo://account`
+- 2 novos prompts: `analise_pipeline`, `motivos_perda`
+- API de notas: listar e criar notas
+- Remoção de valores hardcoded e código duplicado
+- `env.example` sanitizado (sem tokens reais)
 
 ## Licença
 

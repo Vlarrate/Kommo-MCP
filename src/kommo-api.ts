@@ -127,6 +127,21 @@ export interface KommoLossReason {
   is_editable?: boolean;
 }
 
+export type KommoEntityType = 'leads' | 'contacts' | 'companies';
+
+export interface KommoNote {
+  id?: number;
+  entity_id?: number;
+  note_type?: string;
+  params?: {
+    text?: string;
+    [key: string]: unknown;
+  };
+  created_at?: number;
+  updated_at?: number;
+  is_pinned?: boolean;
+}
+
 // Novas interfaces para Relatórios
 export interface KommoSalesReport {
   period: {
@@ -499,13 +514,31 @@ export class KommoAPI {
     return response.data;
   }
 
-  // ===== NOTAS: FIXAR / DESAFIXAR (API 2026) =====
-  async pinNote(entityType: 'leads' | 'contacts' | 'companies', noteId: number): Promise<any> {
+  // ===== NOTAS =====
+  async getNotes(
+    entityType: KommoEntityType,
+    entityId: number,
+    params?: Record<string, unknown>
+  ): Promise<{ _embedded: { notes: KommoNote[] } }> {
+    const response = await this.client.get(`/api/v4/${entityType}/${entityId}/notes`, { params });
+    return response.data;
+  }
+
+  async createNote(
+    entityType: KommoEntityType,
+    entityId: number,
+    note: Partial<KommoNote>
+  ): Promise<KommoNote> {
+    const response = await this.client.post(`/api/v4/${entityType}/${entityId}/notes`, [note]);
+    return response.data._embedded.notes[0];
+  }
+
+  async pinNote(entityType: KommoEntityType, noteId: number): Promise<unknown> {
     const response = await this.client.post(`/api/v4/${entityType}/notes/${noteId}/pin`);
     return response.data;
   }
 
-  async unpinNote(entityType: 'leads' | 'contacts' | 'companies', noteId: number): Promise<any> {
+  async unpinNote(entityType: KommoEntityType, noteId: number): Promise<unknown> {
     const response = await this.client.post(`/api/v4/${entityType}/notes/${noteId}/unpin`);
     return response.data;
   }
