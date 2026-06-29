@@ -30,8 +30,7 @@ RUN npm ci --only=production && npm cache clean --force
 # Copy built application from builder stage
 COPY --from=builder /app/dist ./dist
 
-# Copy environment file
-COPY .env ./
+
 
 # Create non-root user
 RUN groupadd -r appuser && useradd -r -g appuser appuser
